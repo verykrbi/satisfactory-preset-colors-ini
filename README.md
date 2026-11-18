@@ -18,6 +18,8 @@ A Satisfactory mod (SML plugin) that adds your own named colors to the color pic
 
 3. Restart the game, or reload your save. The colors appear in the color picker presets.
 
+A complete example, with 32 colors, is in [Examples/PresetColorsIni.ini](Examples/PresetColorsIni.ini).
+
 ### Format
 
 | Form | Example | Notes |
