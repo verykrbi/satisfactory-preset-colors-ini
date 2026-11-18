@@ -1,0 +1,124 @@
+name: Release
+
+# Builds the mod on a self-hosted Windows runner and publishes a GitHub Release when a version tag is pushed.
+# Never runs on pull requests: the runner is a personal machine.
+#
+#   git tag v0.1.0
+#   git push origin v0.1.0
+#
+# The tag must match SemVersion in PresetColorsIni.uplugin (v0.1.0 for "0.1.0").
+# One-time setup of the build project and the runner: see .github/ci/README.md.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Labels the runner gets by default.
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 240
+    defaults:
+      run:
+        shell: powershell
+    env:
+      MOD: PresetColorsIni
+      # The Satisfactory fork of Unreal Engine, installed on the runner machine.
+      ENGINE_DIR: D:\Program Files\Unreal Engine - CSS
+      # A dedicated copy of the modding project, made once with .github/ci/setup-build-project.ps1.
+      # Kept apart from the development project so a build never touches it.
+      BUILD_PROJECT_DIR: E:\CI\project
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check the tag matches the plugin version
+        run: |
+          $uplugin = Get-Content "$env:MOD.uplugin" -Raw | ConvertFrom-Json
+          $tag = "$env:GITHUB_REF_NAME"
+          $expected = "v$($uplugin.SemVersion)"
+          if ($tag -ne $expected) {
+            Write-Host "::error title=Version mismatch::Tag is '$tag' but $env:MOD.uplugin has SemVersion '$($uplugin.SemVersion)' (expected tag '$expected')."
+            exit 1
+          }
+          if ($uplugin.VersionName -ne $uplugin.SemVersion) {
+            Write-Host "::warning title=Version names differ::VersionName '$($uplugin.VersionName)' and SemVersion '$($uplugin.SemVersion)' are different."
+          }
+
+      - name: Check the build setup exists
+        run: |
+          foreach ($path in "$env:ENGINE_DIR\Engine\Build\BatchFiles\RunUAT.bat", "$env:BUILD_PROJECT_DIR\FactoryGame.uproject") {
+            if (-not (Test-Path $path)) {
+              Write-Host "::error title=Missing build setup::'$path' does not exist. See .github/ci/README.md."
+              exit 1
+            }
+          }
+
+      - name: Copy the mod into the build project
+        run: |
+          $dest = "$env:BUILD_PROJECT_DIR\Mods\$env:MOD"
+          robocopy "$env:GITHUB_WORKSPACE" "$dest" /MIR /XD .git .github Binaries Intermediate Saved /NFL /NDL /NJH /NJS /NP
+          # robocopy reports success with codes 0-7.
+          if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE }
+          $global:LASTEXITCODE = 0
+
+      - name: Build the editor target
+        # The cook step loads the editor build of the module, so it has to exist first.
+        run: |
+          & "$env:ENGINE_DIR\Engine\Build\BatchFiles\Build.bat" FactoryEditor Win64 Development "-Project=$env:BUILD_PROJECT_DIR\FactoryGame.uproject" -WaitMutex
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Package the mod
+        run: |
+          # Remove an older zip so a failed package can't publish a stale one.
+          Remove-Item "$env:BUILD_PROJECT_DIR\Saved\ArchivedPlugins\$env:MOD" -Recurse -Force -ErrorAction SilentlyContinue
+          $project = "$env:BUILD_PROJECT_DIR\FactoryGame.uproject"
+          & "$env:ENGINE_DIR\Engine\Build\BatchFiles\RunUAT.bat" "-ScriptsForProject=$project" PackagePlugin "-project=$project" -clientconfig=Shipping -serverconfig=Shipping -utf8output "-DLCName=$env:MOD" -build -platform=Win64 -nocompileeditor -merge
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check the zip
+        run: |
+          $zip = "$env:BUILD_PROJECT_DIR\Saved\ArchivedPlugins\$env:MOD\$env:MOD.zip"
+          if (-not (Test-Path $zip)) {
+            Write-Host "::error title=No zip::Packaging did not produce '$zip'."
+            exit 1
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [IO.Compression.ZipFile]::OpenRead($zip)
+          try { $names = $archive.Entries | ForEach-Object { $_.FullName } } finally { $archive.Dispose() }
+          foreach ($required in "Windows/$env:MOD.uplugin") {
+            if ($names -notcontains $required) {
+              Write-Host "::error title=Bad zip::'$required' is missing from the zip."
+              exit 1
+            }
+          }
+          if (-not ($names | Where-Object { $_ -like "Windows/Binaries/Win64/*-$env:MOD-Win64-Shipping.dll" })) {
+            Write-Host "::error title=Bad zip::No Shipping DLL in the zip."
+            exit 1
+          }
+          Copy-Item $zip "$env:GITHUB_WORKSPACE\$env:MOD.zip"
+          Write-Host "Zip OK: $($names.Count) entries"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.MOD }}
+          path: ${{ env.MOD }}.zip
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
+          $api = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases"
+          $body = @{ tag_name = $env:GITHUB_REF_NAME; name = $env:GITHUB_REF_NAME; generate_release_notes = $true } | ConvertTo-Json
+          $release = Invoke-RestMethod -Method Post -Uri $api -Headers $headers -Body $body -ContentType 'application/json'
+          $uploadUrl = ($release.upload_url -replace '\{.*$', '') + "?name=$env:MOD.zip"
+          Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -InFile "$env:GITHUB_WORKSPACE\$env:MOD.zip" -ContentType 'application/zip' | Out-Null
+          Write-Host "Release: $($release.html_url)"

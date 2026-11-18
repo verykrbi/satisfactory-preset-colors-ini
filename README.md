@@ -60,6 +60,10 @@ Requires the Satisfactory modding project and SML ^3.12.0. Package with Alpakit,
 
 MIT. See [LICENSE](LICENSE).
 
+## Releasing
+
+Pushing a version tag (for example `v0.1.0`) builds the mod on a self-hosted runner and publishes a GitHub Release. See [.github/ci/README.md](.github/ci/README.md).
+
 ## Layout
 
 - `PresetColorsIni.uplugin`: plugin descriptor.
