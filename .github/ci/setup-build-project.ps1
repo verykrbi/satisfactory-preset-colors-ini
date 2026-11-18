@@ -35,5 +35,7 @@ $excludeDirs = @(
 robocopy $Source $Destination /E /XD @excludeDirs /NFL /NDL /NP
 # robocopy reports success with codes 0-7.
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
+# Don't let robocopy's "files were copied" code (1) become the script's own exit code.
+$global:LASTEXITCODE = 0
 
 Write-Host "Build project ready at $Destination"
