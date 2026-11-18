@@ -30,6 +30,9 @@ jobs:
       run:
         shell: powershell
     env:
+      # Windows PowerShell refuses to run script files by default, and the runner starts each step as a script file.
+      # This lets the steps run without changing the machine's execution policy.
+      PSExecutionPolicyPreference: Bypass
       MOD: PresetColorsIni
       # The Satisfactory fork of Unreal Engine, installed on the runner machine.
       ENGINE_DIR: D:\Program Files\Unreal Engine - CSS
