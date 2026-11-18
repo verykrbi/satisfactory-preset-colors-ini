@@ -56,6 +56,10 @@ Whenever a world starts, the presets you saved in the color picker are written t
 
 Requires the Satisfactory modding project and SML ^3.12.0. Package with Alpakit, or with `RunUAT PackagePlugin` (including `-build -nocompileeditor`, otherwise no Shipping DLL is built).
 
+## License
+
+MIT. See [LICENSE](LICENSE).
+
 ## Layout
 
 - `PresetColorsIni.uplugin`: plugin descriptor.
