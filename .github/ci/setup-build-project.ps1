@@ -13,7 +13,7 @@
   incremental, so keep the copy.
 
 .EXAMPLE
-  .\setup-build-project.ps1 -Source D:\Modding\Satisfactory -Destination E:\CI\project
+  .\setup-build-project.ps1 -Source D:\Modding\Satisfactory -Destination D:\Modding\CI\project
 #>
 param(
     [Parameter(Mandatory)] [string] $Source,

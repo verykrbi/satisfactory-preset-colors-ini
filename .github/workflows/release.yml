@@ -38,7 +38,7 @@ jobs:
       ENGINE_DIR: D:\Program Files\Unreal Engine - CSS
       # A dedicated copy of the modding project, made once with .github/ci/setup-build-project.ps1.
       # Kept apart from the development project so a build never touches it.
-      BUILD_PROJECT_DIR: E:\CI\project
+      BUILD_PROJECT_DIR: D:\Modding\CI\project
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
@@ -120,8 +120,10 @@ jobs:
         run: |
           $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
           $api = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases"
-          $body = @{ tag_name = $env:GITHUB_REF_NAME; name = $env:GITHUB_REF_NAME; generate_release_notes = $true } | ConvertTo-Json
+          # Immutable releases accept no new assets once published, so create a draft, upload the zip, then publish.
+          $body = @{ tag_name = $env:GITHUB_REF_NAME; name = $env:GITHUB_REF_NAME; generate_release_notes = $true; draft = $true } | ConvertTo-Json
           $release = Invoke-RestMethod -Method Post -Uri $api -Headers $headers -Body $body -ContentType 'application/json'
           $uploadUrl = ($release.upload_url -replace '\{.*$', '') + "?name=$env:MOD.zip"
           Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -InFile "$env:GITHUB_WORKSPACE\$env:MOD.zip" -ContentType 'application/zip' | Out-Null
-          Write-Host "Release: $($release.html_url)"
+          $published = Invoke-RestMethod -Method Patch -Uri "$api/$($release.id)" -Headers $headers -Body (@{ draft = $false } | ConvertTo-Json) -ContentType 'application/json'
+          Write-Host "Release: $($published.html_url)"
