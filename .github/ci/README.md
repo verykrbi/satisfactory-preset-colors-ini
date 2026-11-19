@@ -50,7 +50,7 @@ You need on the runner machine:
 .\.github\ci\setup-build-project.ps1 -Source <your modding project> -Destination <build project folder>
 ```
 
-The script copies the project and leaves out what a build doesn't need: git history, Visual Studio files, local build output, and mods that aren't part of the build.
+The script copies the project and leaves out what a build doesn't need: git history, Visual Studio files, local build output, and every mod except the ones the build itself needs (SML, Alpakit, SMLEditor, AccessTransformers, GameFeatures and WwisePatches). New mods are left out automatically; if a game or SML update adds a required folder, add it to `$keepMods` in the script.
 
 - Put the build project on a drive with plenty of free space. It is roughly 12 GB when copied, and grows when you build in it.
 - The **first build in it compiles everything from scratch** (about 1,900 compile steps), which takes hours. Later builds should only recompile what changed, so keep the folder.
