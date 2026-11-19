@@ -2,11 +2,15 @@
 
 All notable changes to this mod are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
-## [0.1.1] - 2026-11-19
+## [0.1.2] - 2026-11-19
 
 ### Fixed
 
 - The plugin's `Version` field now matches the major number of `SemVersion`, which ficsit.app requires. Version 0.1.0 was rejected there.
+
+## [0.1.1] - 2026-11-19
+
+Never released. Its GitHub release was created empty and could not be reused, so the changes went out as 0.1.2.
 
 ## [0.1.0] - 2026-11-18
 
@@ -20,5 +24,5 @@ First release.
 - Every time a world starts, the presets saved in your save are exported to `PresetColorsIni.Exported.ini`.
 - An example file is created on the first run.
 
-[0.1.1]: https://github.com/verykrbi/satisfactory-preset-colors-ini/compare/v0.1.0...v0.1.1
+[0.1.2]: https://github.com/verykrbi/satisfactory-preset-colors-ini/compare/v0.1.0...v0.1.2
 [0.1.0]: https://github.com/verykrbi/satisfactory-preset-colors-ini/releases/tag/v0.1.0
